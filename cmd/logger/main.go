@@ -124,6 +124,21 @@ func monitorLogs(ctx context.Context, cli *client.Client, networkName string, co
 		return nil
 	}
 
+	// Check if any containers match the service filter
+	if len(config.serviceNames) > 0 {
+		hasMatch := false
+		for _, containerInfo := range containers {
+			if matchesServiceName(containerInfo.Name, config.serviceNames) {
+				hasMatch = true
+				break
+			}
+		}
+		if !hasMatch {
+			return fmt.Errorf("no containers found matching service filter(s): %s",
+				strings.Join(config.serviceNames, ", "))
+		}
+	}
+
 	fmt.Printf("Monitoring logs for network '%s'...\n", networkName)
 
 	// Use WaitGroup to keep main function alive until all logs are done
@@ -355,12 +370,21 @@ func matchesServiceName(containerName string, serviceFilters []string) bool {
 	}
 
 	containerNameLower := strings.ToLower(containerName)
+	foundMatch := false
+
 	for _, filter := range serviceFilters {
 		if strings.Contains(containerNameLower, strings.ToLower(filter)) {
-			return true
+			foundMatch = true
+			break
 		}
 	}
-	return false
+
+	if !foundMatch {
+		fmt.Printf("Warning: Service '%s' does not match any of the specified filters: %v\n",
+			containerName, strings.Join(serviceFilters, ", "))
+	}
+
+	return foundMatch
 }
 
 // Add a new helper function to parse service names

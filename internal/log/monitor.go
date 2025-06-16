@@ -12,30 +12,13 @@ import (
 	"github.com/fatih/color"
 )
 
-// MonitorLogs retrieves and streams logs from containers in the specified Docker network.
-func MonitorLogs(ctx context.Context, cli *client.Client, networkName string) error {
-	network, err := cli.NetworkInspect(ctx, networkName, types.NetworkInspectOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to find network '%s': %v", networkName, err)
-	}
-
-	containers := network.Containers
-	if len(containers) == 0 {
-		fmt.Printf("No containers found in network '%s'.\n", networkName)
-		return nil
-	}
-
-	fmt.Printf("Monitoring logs for network '%s'...\n", networkName)
-
-	for containerID, containerInfo := range containers {
-		go streamContainerLogs(ctx, cli, containerID, containerInfo.Name)
-	}
-
-	return nil
+// LogConfig holds the configuration for log monitoring.
+type LogConfig struct {
+	serviceNames []string
 }
 
 // streamContainerLogs streams logs from a specific container and formats them with timestamps and colors.
-func streamContainerLogs(ctx context.Context, cli *client.Client, containerID, containerName string) {
+func streamContainerLogs(ctx context.Context, cli *client.Client, containerID, containerName string, config *LogConfig) {
 	logs, err := cli.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
